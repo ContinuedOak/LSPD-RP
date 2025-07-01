@@ -1,4 +1,4 @@
-# LSPD-RP
+# LSPD-RP (indev)
 LSPD-RP is an add-on for LSPDFR
 
 ## Required Mods
