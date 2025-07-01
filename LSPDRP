@@ -1,0 +1,3004 @@
+using System.Windows.Forms;
+using System.Drawing;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System;
+using GTA;
+using GTA.Native;
+using GTA.UI;
+using GTA.Math;
+using LemonUI;
+using LemonUI.Menus;
+
+
+// Developers Infomation
+
+// when creating custom notification, refer to 'https://nitanmarcel.github.io/scripthookvdotnet/scripting_v3/GTA.UI.NotificationIcon.html' for the Notification Icon
+// example: NotificationManager.CreateNotificationIcon(NotificationIcon.Call911, "Senders Name", "Subject of the message", "This is an example message");
+
+// Mods Required
+
+// ScriptHookV
+// LemonUI.SHVDN3
+// ScriptHookVDotNet3
+// Cayo Perico (only if you want the airport to work correctly)
+
+namespace OaksVAPI
+{
+    #region Developer Tools
+    public class DeveloperTool :Script
+    {
+        public static bool isDev = true;
+
+        public DeveloperTool()
+        {
+            KeyDown += OnKeyUp;
+
+        }
+        private void OnKeyUp(object sender, KeyEventArgs e)
+        {
+            if(isDev)
+            {
+                if (e.KeyCode == Keys.F12)
+                {
+                    // Reload Data Ini
+                    Player.Data.LoadBankingData();
+                    Inventory.player.LoadInventoryData();
+                    Hospital.Data.LoadLocationsFromIni();
+
+                    // Reload Restraunts Ini
+                    ChihuahuaStore.Shop.LoadLocationsFromIni();
+                    BurgerShot.Shop.LoadLocationsFromIni();
+                    Bite.Shop.LoadLocationsFromIni();
+                    TacoLibre.Shop.LoadLocationsFromIni();
+                    CluckinBell.Shop.LoadLocationsFromIni();
+                    BeanMachine.Shop.LoadLocationsFromIni();
+                    LuckyPlucker.Shop.LoadLocationsFromIni();
+                    Bishops.Shop.LoadLocationsFromIni();
+                    AttackATaco.Shop.LoadLocationsFromIni();
+                    RustyBrown.Shop.LoadLocationsFromIni();
+                    RingOfFire.Shop.LoadLocationsFromIni();
+                    SnrMuffin.Shop.LoadLocationsFromIni();
+                    Hornys.Shop.LoadLocationsFromIni();
+
+                    // Reload Stores Ini
+                    WeedStore.Shop.LoadLocationsFromIni();
+                    RedwoodShop.Shop.LoadLocationsFromIni();
+
+                    // Reload Unlock Doors
+                    LoadMaps.LoadDoorsFromIni(LoadMaps.path);
+
+                    NotificationManager.CreateNotificationIcon(NotificationIcon.Default, "ContinuedOak", "Developer Message", "Successful Reloaded All Ini");
+                }
+            }
+        }
+    }
+
+    public class LocationSaver : Script
+    {
+        private string saveFilePath = @"scripts\LSPDRP\locations\debug\SavedLocations.ini";
+        private int locationIndex = 0;
+
+        public LocationSaver()
+        {
+            Tick += OnTick;
+            Interval = 0;
+
+            // Create directory if it doesn't exist
+            Directory.CreateDirectory(Path.GetDirectoryName(saveFilePath));
+
+            // Count how many locations already exist
+            if (File.Exists(saveFilePath))
+            {
+                locationIndex = CountExistingLocations();
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            if (Game.IsKeyPressed(Keys.F11))
+            {
+                SavePlayerLocation();
+                Script.Wait(300); // prevent multiple writes from one key press
+            }
+        }
+
+        private void SavePlayerLocation()
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists()) return;
+
+            Vector3 pos = player.Position;
+
+            string line = $"Location = {pos.X:F4}, {pos.Y:F4}, {pos.Z:F4}";
+            File.AppendAllText(saveFilePath, line + Environment.NewLine);
+            GTA.UI.Notification.Show($"~g~Saved location {locationIndex} to INI.");
+
+            locationIndex++;
+        }
+
+        private int CountExistingLocations()
+        {
+            int count = 0;
+            foreach (string line in File.ReadAllLines(saveFilePath))
+            {
+                if (line.StartsWith("Location"))
+                    count++;
+            }
+            return count;
+        }
+    }
+    #endregion
+    #region API Shit
+    public class Display : Script
+    {
+        /// <summary>
+        /// 
+        /// Imporant Infomation
+        /// 
+        /// Font Numbers
+        /// 
+        /// 0 = Chalet London (Default font)
+        /// 1 = House Script (Cursive script/used in cutscenes)
+        /// 2 = Monospace (Fixed-width typeface)
+        /// 3 = Wingdings-style (Symbols and glyphs)
+        /// 4 = Chalet Comprime Cologne (More condensed font)
+        /// 7 = Pricedown (GrandTheftAuto Logo)
+        /// 
+        /// Using any numbers above or below this vaule can cause the game to crash as they are invaild numbers.
+        /// 
+        /// </summary>
+
+
+        public static Display Instance { get; private set; }
+        public Display()
+        {
+            Instance = this;
+        }
+        public void DrawSprite(string dict, string name, PointF pos, SizeF size, float heading, Color color)
+        {
+            if (!Function.Call<bool>(GTA.Native.Hash.HAS_STREAMED_TEXTURE_DICT_LOADED, dict))
+                Function.Call(GTA.Native.Hash.REQUEST_STREAMED_TEXTURE_DICT, dict, true);
+
+            Function.Call(GTA.Native.Hash.DRAW_SPRITE, dict, name, pos.X, pos.Y, size.Width, size.Height, heading,
+                          color.R, color.G, color.B, color.A);
+        }
+        public void DrawText(string text, float x, float y, float scale = 0.35f, int font = 0, Color? color = null)
+        {
+            if (color == null)
+                color = Color.White;
+
+            Function.Call(GTA.Native.Hash.SET_TEXT_FONT, font);
+            Function.Call(GTA.Native.Hash.SET_TEXT_SCALE, scale, scale);
+            Function.Call(GTA.Native.Hash.SET_TEXT_COLOUR, color.Value.R, color.Value.G, color.Value.B, color.Value.A);
+            Function.Call(GTA.Native.Hash.SET_TEXT_WRAP, 0.0f, 1.0f);
+            Function.Call(GTA.Native.Hash.SET_TEXT_CENTRE, true);
+            Function.Call(GTA.Native.Hash.SET_TEXT_OUTLINE);
+            Function.Call(GTA.Native.Hash.BEGIN_TEXT_COMMAND_DISPLAY_TEXT, "STRING");
+            Function.Call(GTA.Native.Hash.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME, text);
+            Function.Call(GTA.Native.Hash.END_TEXT_COMMAND_DISPLAY_TEXT, x, y);
+        }
+        public void DrawTextRightAligned(string text, float x, float y, float scale = 0.35f, int font = 0, Color? color = null)
+        {
+            if (color == null)
+                color = Color.White;
+
+            Function.Call(GTA.Native.Hash.SET_TEXT_FONT, font);
+            Function.Call(GTA.Native.Hash.SET_TEXT_SCALE, scale, scale);
+            Function.Call(GTA.Native.Hash.SET_TEXT_COLOUR, color.Value.R, color.Value.G, color.Value.B, color.Value.A);
+
+            Function.Call(GTA.Native.Hash.SET_TEXT_WRAP, 0.0f, x);         // Wrap from left to x
+            Function.Call(GTA.Native.Hash.SET_TEXT_RIGHT_JUSTIFY, true);   // Align right
+            Function.Call(GTA.Native.Hash.SET_TEXT_OUTLINE);
+
+            Function.Call(GTA.Native.Hash.BEGIN_TEXT_COMMAND_DISPLAY_TEXT, "STRING");
+            Function.Call(GTA.Native.Hash.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME, text);
+            Function.Call(GTA.Native.Hash.END_TEXT_COMMAND_DISPLAY_TEXT, x, y); // Text ends at x
+        }
+
+        // Currently broken requries a rework
+        public void PlayCutscene(string cutsceneName)
+        {
+            Ped player = Game.Player.Character;
+
+            // Fade out screen
+            Function.Call(Hash.DO_SCREEN_FADE_OUT, 500);
+            Script.Wait(600);
+
+            // Load the cutscene
+            Function.Call(Hash.REQUEST_CUTSCENE, cutsceneName, 8);
+            while (!Function.Call<bool>(Hash.HAS_CUTSCENE_LOADED))
+            {
+                Script.Wait(0);
+            }
+
+            // Optional: Register player ped for the cutscene (sometimes necessary)
+            Function.Call(Hash.REGISTER_ENTITY_FOR_CUTSCENE, player, "MP_1", 0, 0, 64);
+
+            // Hide the player (can cause crashes if skipped for some cutscenes)
+            Function.Call(Hash.SET_ENTITY_VISIBLE, player, false, false);
+
+            // Start the cutscene
+            Function.Call(Hash.START_CUTSCENE, 0);
+
+            // Wait for the cutscene to play
+            while (Function.Call<bool>(Hash.IS_CUTSCENE_ACTIVE) || Function.Call<bool>(Hash.IS_CUTSCENE_PLAYING))
+            {
+                Script.Wait(0);
+            }
+
+            // Cleanup
+            Function.Call(Hash.DO_SCREEN_FADE_IN, 1000);
+            Function.Call(Hash.SET_ENTITY_VISIBLE, player, true, false);
+        }
+    }
+    public class NotificationManager : Script
+    {
+        public static void CreateNotificationIcon(NotificationIcon icon, string sender, string subject, string message) // icon // Contact // name under contact // message
+        {
+            GTA.UI.Notification.Show(icon, sender, subject, message, false, false);
+
+            Function.Call(GTA.Native.Hash.PLAY_SOUND_FRONTEND, -1, "Text_Arrive_Tone", "Phone_SoundSet_Default", true);
+        }
+    }
+    public class SaveLoadManager : Script
+    {
+        public static string playerDataPath = "scripts\\LSPDRP\\PlayerData.ini";
+        public static string inventoryPath = "scripts\\LSPDRP\\inventory.ini";
+
+        // Save int to a specified INI file
+        public static void SaveInt(string section, string key, int value, bool toInventory = false)
+        {
+            string path = toInventory ? inventoryPath : playerDataPath;
+
+            if (!File.Exists(path))
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+            var lines = File.Exists(path)
+                ? File.ReadAllLines(path).ToList()
+                : new List<string>();
+
+            bool sectionFound = false;
+            bool keyWritten = false;
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (lines[i].Trim() == $"[{section}]")
+                {
+                    sectionFound = true;
+                    for (int j = i + 1; j < lines.Count; j++)
+                    {
+                        if (lines[j].StartsWith("[")) break;
+
+                        if (lines[j].StartsWith($"{key}="))
+                        {
+                            lines[j] = $"{key}={value}";
+                            keyWritten = true;
+                            break;
+                        }
+                    }
+
+                    if (!keyWritten)
+                    {
+                        lines.Insert(i + 1, $"{key}={value}");
+                        keyWritten = true;
+                    }
+
+                    break;
+                }
+            }
+
+            if (!sectionFound)
+            {
+                lines.Add($"[{section}]");
+                lines.Add($"{key}={value}");
+            }
+
+            File.WriteAllLines(path, lines);
+        }
+
+        // Load int from specified INI file
+        public static int LoadInt(string section, string key, int defaultValue = 0, bool fromInventory = false)
+        {
+            string path = fromInventory ? inventoryPath : playerDataPath;
+
+            if (!File.Exists(path))
+                return defaultValue;
+
+            var lines = File.ReadAllLines(path);
+            bool inSection = false;
+
+            foreach (var line in lines)
+            {
+                if (line.Trim() == $"[{section}]")
+                {
+                    inSection = true;
+                    continue;
+                }
+
+                if (inSection)
+                {
+                    if (line.StartsWith("[")) break;
+
+                    if (line.StartsWith($"{key}="))
+                    {
+                        var valueStr = line.Substring($"{key}=".Length);
+                        if (int.TryParse(valueStr, out int result))
+                            return result;
+                    }
+                }
+            }
+
+            return defaultValue;
+        }
+    }
+    #endregion
+    #region Player Stuff
+    public class LoadMaps : Script
+    {
+        private bool isLoaded = false;
+
+        public static string path = "scripts\\LSPDRP\\UnlockedDoors.ini";
+
+
+        public LoadMaps()
+        {
+            Tick += OnTick;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            LoadDoorsFromIni(path);
+            if (!isLoaded)
+            {
+                LoadIPLs();
+                isLoaded = true;
+            }
+        }
+
+
+        private void LoadIPLs()
+        {
+            // Reveal minimap
+            Function.Call((GTA.Native.Hash)0xF8DEE0A5600CBB93, true); // SET_MINIMAP_REVEALED
+
+            // Remove IPLs
+            Function.Call(Hash.REMOVE_IPL, "fiblobbyfake");
+            Function.Call(Hash.REMOVE_IPL, "facelobbyfake");
+            Function.Call(Hash.REMOVE_IPL, "sp1_10_fake_interior");
+            Function.Call(Hash.REMOVE_IPL, "farmint_cap"); // O'Neil Ranch
+            Function.Call(Hash.REMOVE_IPL, "CS1_02_cf_offmission");
+            Function.Call(Hash.REMOVE_IPL, "jewel2fake");
+
+            // Request IPLs
+            Function.Call(Hash.REQUEST_IPL, "BH1_48_Killed_Michael");
+            Function.Call(Hash.REQUEST_IPL, "linvader");
+            Function.Call(Hash.REQUEST_IPL, "facelobby");
+            Function.Call(Hash.REQUEST_IPL, "SP1_10_real_interior");
+            Function.Call(Hash.REQUEST_IPL, "xs_arena_banners_ipl");
+            Function.Call(Hash.REQUEST_IPL, "m24_2_airstrip");
+            Function.Call(Hash.REQUEST_IPL, "m24_2_airstrip_lod");
+
+
+            Function.Call(Hash.REQUEST_IPL, "post_hiest_unload");
+            Function.Call(Hash.REQUEST_IPL, "v_jewel2");
+
+            // Bunker Locations
+            Function.Call(Hash.REQUEST_IPL, "gr_case7_bunkerclosed");
+            Function.Call(Hash.REQUEST_IPL, "gr_case4_bunkerclosed");
+            Function.Call(Hash.REQUEST_IPL, "gr_case2_bunkerclosed");
+
+            // Cluckin bell missions
+            Function.Call(Hash.REQUEST_IPL, "CS1_02_cf_onmission1");
+            Function.Call(Hash.REQUEST_IPL, "CS1_02_cf_onmission2");
+            Function.Call(Hash.REQUEST_IPL, "CS1_02_cf_onmission3");
+            Function.Call(Hash.REQUEST_IPL, "CS1_02_cf_onmission4");
+
+            // O'Neil Ranch
+            Function.Call(Hash.REQUEST_IPL, "farm");
+            Function.Call(Hash.REQUEST_IPL, "farm_props");
+            Function.Call(Hash.REQUEST_IPL, "farmint");
+
+            // Alien DLC interiors
+            Function.Call(Hash.REQUEST_IPL, "m23_1_dlc_int_03_m23_1");
+            Function.Call(Hash.REQUEST_IPL, "ufo");
+        }
+        public static void LoadDoorsFromIni(string path)
+        {
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var lines = File.ReadAllLines(path);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("door", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2)
+                        continue;
+
+                    string[] values = parts[1].Split(',');
+                    if (values.Length != 4)
+                        continue;
+
+                    string model = values[0].Trim();
+                    if (float.TryParse(values[1], out float x) &&
+                        float.TryParse(values[2], out float y) &&
+                        float.TryParse(values[3], out float z))
+                    {
+                        UnlockDoor(model, new Vector3(x, y, z));
+                    }
+                }
+            }
+
+        }
+
+        public static void UnlockDoor(string modelName, Vector3 position)
+        {
+            if (Game.Player.Character.Position.DistanceTo(position) > 10f)
+                return;
+
+            int doorHash = Function.Call<int>(Hash.GET_HASH_KEY, modelName);
+
+            // Unlock the closest door of that model at the position
+            Function.Call(Hash.SET_STATE_OF_CLOSEST_DOOR_OF_TYPE, doorHash, position.X, position.Y, position.Z, false, 0.0f, 50.0f);
+
+            // Get door handle (we'll simulate the ref behavior here)
+            int doorHandle = Function.Call<int>((Hash)0xF82D8F1926A02C3D, doorHash, position.X, position.Y, position.Z, 0); // GET_CLOSEST_DOOR_OF_TYPE
+
+            if (doorHandle == 0)
+                return;
+
+            // Register door if not already
+            if (!Function.Call<bool>(Hash.IS_DOOR_REGISTERED_WITH_SYSTEM, doorHandle))
+            {
+                Function.Call(Hash.ADD_DOOR_TO_SYSTEM, doorHandle, doorHash, position.X, position.Y, position.Z, false, false, false);
+            }
+
+            // Set ajar angle (open state)
+            Function.Call((Hash)0x1748482C7B2D2D6B, doorHandle, 0f, false, false); // SET_DOOR_AJAR_ANGLE
+        }
+    }
+    public class Player : Script
+    {
+        public int cashValue;
+        public bool isMenuOpen;
+
+        public int hunger;
+
+        public static Player Data { get; private set; }
+
+        private DateTime displayStart = DateTime.MinValue;
+        private DateTime displayEnd = DateTime.MinValue;
+        private const float fadeDuration = 0.1f; // seconds
+
+        public Player()
+        {
+            Data = this;
+            Tick += OnTick;
+            KeyDown += OnKeyDown;
+
+            LoadBankingData();
+
+            ShowForSeconds(10);
+        }
+
+        public void SaveBankingData()
+        {
+            SaveLoadManager.SaveInt("PlayerData", "cash", cashValue);
+        }
+
+        public void LoadBankingData()
+        {
+            cashValue = SaveLoadManager.LoadInt("PlayerData", "cash", 500);
+        }
+
+        public void CashTransfer(bool type, int vaule)
+        {
+            if(type)
+                cashValue += vaule;
+            else
+                cashValue -= vaule;
+
+            // Saves Players Cash Vaule
+            SaveBankingData();
+        }
+
+        public void ShowForSeconds(int seconds)
+        {
+            displayStart = DateTime.Now;
+            displayEnd = DateTime.Now.AddSeconds(seconds);
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            DateTime now = DateTime.Now;
+
+            if (now > displayEnd)
+                return;
+
+            float alpha = 1f;
+
+            float elapsed = (float)(now - displayStart).TotalSeconds;
+            float remaining = (float)(displayEnd - now).TotalSeconds;
+
+            if (elapsed < fadeDuration)
+            {
+                // Fade in
+                alpha = elapsed / fadeDuration;
+            }
+            else if (remaining < fadeDuration)
+            {
+                // Fade out
+                alpha = remaining / fadeDuration;
+            }
+
+            // Clamp alpha between 0 and 1
+            alpha = Math.Max(0f, Math.Min(1f, alpha));
+
+            int alpha255 = (int)(alpha * 255f);
+
+            string cashTxt = "$" + cashValue;
+            Color cashColour = Color.FromArgb(alpha255, 119, 204, 116);
+
+            Display.Instance.DrawTextRightAligned(
+                cashTxt,
+                1f,
+                0.075f,
+                0.65f,
+                7,
+                cashColour);
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.F10)
+            {
+                ShowForSeconds(5); // Show for 5 seconds
+            }
+            if (e.KeyCode == Keys.F7)
+            {
+                Inventory.player.ToggleMenu();
+            }
+        }
+    }
+
+    #endregion
+
+    #region Inventory
+    public class Inventory : Script
+    {
+        // Inventory stored in a dictionary (item name -> quantity)
+        private Dictionary<string, int> inventory = new Dictionary<string, int>()
+        {
+            { "Weed", 3 },
+            { "Redwood", 20 }
+        };
+
+        public void SaveInventoryData()
+        {
+            foreach (var item in inventory)
+            {
+                SaveLoadManager.SaveInt("Inventory", item.Key, item.Value, toInventory: true);
+            }
+        }
+
+        public void LoadInventoryData()
+        {
+            var keys = new List<string>(inventory.Keys); // Avoid modifying during iteration
+            foreach (string item in keys)
+            {
+                inventory[item] = SaveLoadManager.LoadInt("Inventory", item, 0, fromInventory: true);
+            }
+        }
+
+
+        // LemonUI menu system
+        private readonly ObjectPool menuPool = new ObjectPool();
+        public readonly NativeMenu inventoryOptions;
+
+        public static Inventory player { get; private set; }
+
+        public Inventory()
+        {
+            Tick += OnTick;
+
+            player = this;
+
+            inventoryOptions = new NativeMenu("Inventory", "Manage Items");
+            menuPool.Add(inventoryOptions);
+
+            PopulateInventoryMenu(); // Initial population
+
+            LoadInventoryData();
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            menuPool.Process(); // Process menus
+        }
+
+        public void ToggleMenu()
+        {
+            PopulateInventoryMenu(); // Refresh menu
+            inventoryOptions.Visible = !inventoryOptions.Visible;
+            Player.Data.isMenuOpen = inventoryOptions.Visible;
+        }
+
+        // Dynamically rebuilds the menu based on current item quantities
+        private void PopulateInventoryMenu()
+        {
+            inventoryOptions.Clear();
+
+            foreach (var entry in inventory)
+            {
+                AddInventoryItem(entry.Key);
+            }
+        }
+
+        // Creates a menu item that lets the player "use" the inventory item
+        private void AddInventoryItem(string label)
+        {
+            int amount = inventory[label];
+            var item = new NativeItem(label, $"x{amount}");
+
+            Ped player = Game.Player.Character;
+
+
+            if (player.IsInVehicle())
+            {
+                return;
+            }
+
+            item.Activated += (sender, args) =>
+            {
+                if (inventory[label] > 0)
+                {
+                    inventory[label]--;
+
+                    switch (label)
+                    {
+                        case "Weed":
+                            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_SMOKING_POT", 0, true);
+                            Script.Wait(15000);
+
+                            if (player.Exists() && !player.IsDead)
+                                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player);
+
+                            // Start the "fade-in" screen effect
+                            GTA.UI.Screen.StartEffect(ScreenEffect.DrugsTrevorClownsFightIn, 3000, false);
+                            Script.Wait(3000);
+
+                            // Start the main drug effect
+                            GTA.UI.Screen.StartEffect(ScreenEffect.DrugsTrevorClownsFight, 45000, false);
+                            Script.Wait(45000); // Wait for the full effect duration
+
+                            // Start the "fade-out" effect
+                            GTA.UI.Screen.StartEffect(ScreenEffect.DrugsTrevorClownsFightOut, 3000, false);
+                            Script.Wait(3000);
+
+                            GTA.UI.Screen.StopEffect(ScreenEffect.DrugsTrevorClownsFightIn);
+                            GTA.UI.Screen.StopEffect(ScreenEffect.DrugsTrevorClownsFight);
+                            GTA.UI.Screen.StopEffect(ScreenEffect.DrugsTrevorClownsFightOut);
+
+                            break;
+
+                        case "Redwood":
+                            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_SMOKING", 0, true);
+                            Script.Wait(25000);
+
+                            if (player.Exists() && !player.IsDead)
+                                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player);
+                            break;
+
+                        default:
+                            Notification.Show($"~g~Used 1x {label}");
+                            break;
+                    }
+
+                    SaveInventoryData();
+                }
+                else
+                {
+                    Notification.Show($"~r~No {label} left to use.");
+                }
+
+                // Close the menu after use
+                inventoryOptions.Visible = false;
+                Player.Data.isMenuOpen = false;
+            };
+
+            inventoryOptions.Add(item);
+        }
+
+        public void AddItem(string itemName, int amount)
+        {
+            if (inventory.ContainsKey(itemName))
+            {
+                inventory[itemName] += amount;
+            }
+            else
+            {
+                inventory[itemName] = amount;
+            }
+
+            SaveInventoryData();
+        }
+
+        public int GetItemAmount(string itemName)
+        {
+            if (inventory.ContainsKey(itemName))
+                return inventory[itemName];
+            return 0;
+        }
+
+    }
+    #endregion
+
+    #region Working Airport
+    public class WorkingAirport : Script
+    {
+        /// <summary>
+        /// To Do List
+        /// 
+        /// - Play Cutsence when traveling between LS and Cayo
+        /// - Dynamically load and unload both Cayo and Los Santos
+        /// - Have a way to transfer cars between locations
+        /// 
+        /// </summary>
+
+
+        private Vector3 lsAirport = new Vector3(-1042.673f, -2746.099f, 21.3594f); // Example LS Airport location
+        private Vector3 cayoAirport = new Vector3(4494.3545f, -4525.597f, 4.4124f); // Example Cayo Airport location
+
+        private int price = 2500;
+
+        public WorkingAirport()
+        {
+            Tick += OnTick;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead || player.IsInVehicle()) return;
+
+            if (player.Position.DistanceTo(lsAirport) < 2.0f)
+            {
+                ShowAirportMarker(lsAirport);
+                HandleAirportTravel(player, toCayo: true);
+            }
+            else if (player.Position.DistanceTo(cayoAirport) < 2.0f)
+            {
+                ShowAirportMarker(cayoAirport);
+                HandleAirportTravel(player, toCayo: false);
+            }
+        }
+
+        private void ShowAirportMarker(Vector3 position)
+        {
+            Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                position.X, position.Y, position.Z - 1.0f,
+                0, 0, 0, 0, 0, 0,
+                1.5f, 1.5f, 1.0f,
+                255, 255, 255, 200,
+                false, true, 2, false, null, null, false);
+        }
+
+        private void HandleAirportTravel(Ped player, bool toCayo)
+        {
+            if (Player.Data.cashValue >= price)
+            {
+                string destination = toCayo ? "Cayo Perico" : "Los Santos";
+                GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to fly to {destination} for ${price}", 1);
+
+                if (Game.IsControlJustPressed(GTA.Control.Context))
+                {
+                    Player.Data.cashValue -= price;
+                    Player.Data.ShowForSeconds(5);
+
+                    if (toCayo)
+                    {
+                        Function.Call(Hash.DO_SCREEN_FADE_OUT, 2000);
+                        Script.Wait(600);
+
+                        player.Position = cayoAirport;
+
+                        // Cleanup
+                        Function.Call(Hash.DO_SCREEN_FADE_IN, 500);
+                    }
+                    else
+                    {
+                        Function.Call(Hash.DO_SCREEN_FADE_OUT, 2000);
+                        Script.Wait(600);
+
+                        player.Position = lsAirport;
+
+                        // Cleanup
+                        Function.Call(Hash.DO_SCREEN_FADE_IN, 500);
+                    }
+                }
+            }
+            else
+            {
+                GTA.UI.Screen.ShowHelpText($"~r~Not enough money to travel (${price})", 1);
+            }
+        }
+    }
+    #endregion
+
+    #region Health Care
+    public class Hospital : Script
+    {
+        private List<Vector3> hospitalLocations = new List<Vector3>();
+        private int price = 250;
+
+        public static Hospital Data { get; private set; }
+
+        public Hospital()
+        {
+            LoadLocationsFromIni();
+            Data = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string path = @"scripts\LSPDRP\locations\Hospital.ini";
+
+            if (!File.Exists(path))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~Hospital.ini not found!");
+                return;
+            }
+
+            string[] lines = File.ReadAllLines(path);
+            foreach (string line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int loadedPrice))
+                    {
+                        price = loadedPrice;
+                    }
+                }
+                else if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        hospitalLocations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in hospitalLocations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !player.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    if (Player.Data.cashValue >= price)
+                    {
+                        GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to visit the Hospital for ${price}", 1);
+
+                        if (Game.IsControlJustPressed(GTA.Control.Context))
+                            VisitHospital(player);
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText($"~r~Not enough money and you don't have insurance (${price})", 1);
+                    }
+
+                    break; // Only check one location per tick
+                }
+            }
+        }
+
+        private void VisitHospital(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(8);
+
+            // Fade screen out for immersion
+            Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_OUT, 1000);
+            Script.Wait(1500);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_IN, 1000);
+
+                // Heal player
+                player.Health = Math.Min(player.MaxHealth, player.Health + 100);
+            }
+
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+        }
+    }
+
+    #endregion
+    #region Shops 
+
+    #region Store
+    public class WeedStore : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static WeedStore Shop { get; private set; }
+
+        private int price = 5;
+
+        public WeedStore()
+        {
+            Shop = this;
+            LoadLocationsFromIni();
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\WeedStore.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~WeedStore.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        public void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy a Chihuahua Hotdog for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                BuyDrugs(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void BuyDrugs(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            Inventory.player?.AddItem("Weed", 5);
+        }
+
+    }
+    public class RedwoodShop : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static RedwoodShop Shop { get; private set; }
+
+        private int maxRedwood = 20;
+        private int redwoodUnitPrice = 1;
+
+        public RedwoodShop()
+        {
+            Shop = this;
+            LoadLocationsFromIni();
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\RedwoodShop.ini";
+
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~RedwoodShop.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("UnitPrice", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        redwoodUnitPrice = parsedPrice;
+                    }
+                }
+                else if (line.StartsWith("MaxRedwood", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedMax))
+                    {
+                        maxRedwood = parsedMax;
+                    }
+                }
+                else if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !player.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21)
+                    {
+                        int current = Inventory.player?.GetItemAmount("Redwood") ?? 0;
+                        int toAdd = Math.Max(0, maxRedwood - current);
+                        int totalPrice = toAdd * redwoodUnitPrice;
+
+                        if (current >= maxRedwood)
+                        {
+                            GTA.UI.Screen.ShowHelpText("~r~You already have enough Redwoods (max reached)", 1);
+                        }
+                        else if (Player.Data.cashValue >= totalPrice)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy {toAdd} Redwood(s) for ${totalPrice}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                Shopping(toAdd, totalPrice);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~Not enough money for {toAdd} Redwood(s) (${totalPrice})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This store is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // Only check one location per frame
+                }
+            }
+        }
+
+        private void Shopping(int toAdd, int totalPrice)
+        {
+            // Deduct cash
+            Player.Data.CashTransfer(false, totalPrice);
+            Player.Data.ShowForSeconds(5);
+
+            // Bank notification
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${totalPrice} has been deducted from the account ending in *420");
+
+            // Add to inventory
+            Inventory.player?.AddItem("Redwood", toAdd);
+        }
+    }
+    #endregion
+
+    #region Motel
+    public class Motel : Script
+    {
+        private List<Vector3> MotelLocations = new List<Vector3>
+        {
+        new Vector3(317.1820f, 2623.1821f, 44.4607f), // US Route 68
+        new Vector3(1141.8226f, 2663.9111f, 38.1609f), // E Joshua Rd
+        new Vector3(-696.4077f, 5802.5083f, 17.3310f), // Procopie Promenade
+        new Vector3(-123.0892f, 6390.2632f, 32.1779f), // Paleto Blvd
+        new Vector3(570.1520f, -1746.928f, 29.2088f), // Innocence Blvd / Little Bighorn Ave
+        new Vector3(570.1520f, -1746.928f, 29.2088f), // Innocence Blvd / Little Bighorn Ave
+        new Vector3(-1477.773f, -673.5680f, 29.0419f), // Bay City Ave
+        new Vector3(405.5403f, -1795.611f, 29.0818f), // Mcdonald St room 17
+        new Vector3(-104.9544f, 6315.8643f, 31.5758f), // Paleto Bay
+        new Vector3(-1317.698f, 939.4100f, 9.7301f), // Bay City Ave
+        new Vector3(-1661.8660f, -533.8199f, 35.8754f),
+        new Vector3(-736.9651f, -2276.5610f, 13.4375f),
+        };
+
+        private int price = 150;
+
+        public Motel()
+        {
+            Tick += OnTick;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in MotelLocations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    if (Player.Data.cashValue >= price)
+                    {
+                        GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to rent a motel and skip to the next day — costs ${price}", 1);
+
+                        if (Game.IsControlJustPressed(GTA.Control.Context))
+                            RentMotel();
+                    }
+                    else
+                        GTA.UI.Screen.ShowHelpText($"~r~Not enough money (${price})", 1);
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void RentMotel()
+        {
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+
+            int currentHour = World.CurrentTimeOfDay.Hours;
+
+            // Fade screen out first for immersion
+            Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_OUT, 1000);
+            Script.Wait(1500);
+
+            if (currentHour >= 5)
+            {
+                // Skip to next day 5 AM by adding hours
+                int hoursToAdd = 24 - currentHour + 5;
+                Function.Call(GTA.Native.Hash.ADD_TO_CLOCK_TIME, hoursToAdd, 0, 0);
+
+                // Randomly Sets the weather
+                GTA.World.SetRandomWeather();
+            }
+            else
+            {
+                // Skip to today 6 AM by setting clock directly
+                Function.Call(GTA.Native.Hash.SET_CLOCK_TIME, 5, 0, 0);
+            }
+
+            Script.Wait(500);
+            Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_IN, 1000);
+
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+        }
+    }
+    #endregion
+
+    #region Restaunts
+    public class ChihuahuaStore : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static ChihuahuaStore Shop { get; private set; }
+
+        private int price = 5;
+
+        public ChihuahuaStore()
+        {
+            Shop = this;
+            LoadLocationsFromIni();
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\ChihuahuaStore.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~ChihuahuaStore.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        public void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy a Chihuahua Hotdog for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class BurgerShot : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static BurgerShot Shop { get; private set; }
+
+        private int price = 35;
+
+        public BurgerShot()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\BurgerShot.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~BurgerShot.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy a Bleeder Burger Meal for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class Bite : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static Bite Shop { get; private set; }
+
+        private int price = 35;
+
+        public Bite()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\Bite.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~Bite.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy a bite sandwich for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class TacoLibre : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static TacoLibre Shop { get; private set; }
+        private int price = 35;
+
+        public TacoLibre()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\TacoLibre.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~TacoLibre.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy some Tacos for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class CluckinBell : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static CluckinBell Shop { get; private set; }
+
+        private int price = 35;
+
+        public CluckinBell()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\CluckinBell.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~CluckinBell.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy Cluckin Bell for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class BeanMachine : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static BeanMachine Shop { get; private set; }
+
+        private int price = 35;
+
+        public BeanMachine()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\BeanMachine.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~BeanMachine.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy a coffee for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class LuckyPlucker : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static LuckyPlucker Shop { get; private set; }
+
+        private int price = 35;
+
+        public LuckyPlucker()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\LuckyPlucker.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~LuckyPlucker.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy some Lucky Plucker for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class Bishops : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static Bishops Shop { get; private set; }
+
+        private int price = 35;
+
+        public Bishops()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\Bishops.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~Bishops.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy some bishops for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class AttackATaco : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static AttackATaco Shop { get; private set; }
+
+        private int price = 35;
+
+        public AttackATaco()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\AttackATaco.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~AttackATaco.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy attack a taco for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class RustyBrown : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static RustyBrown Shop { get; private set; }
+
+        private int price = 35;
+
+        public RustyBrown()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\RustyBrown.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~RustyBrown.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy Rusty Brown Dounuts for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class RingOfFire : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static RingOfFire Shop { get; private set; }
+        private int price = 35;
+
+        public RingOfFire()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\RingOfFire.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~RingOfFire.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy some Ring of Fire for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class SnrMuffin : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static SnrMuffin Shop { get; private set; }
+
+        private int price = 35;
+
+        public SnrMuffin()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\SnrMuffin.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~SnrMuffin.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy some snr Muffin for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    public class Hornys : Script
+    {
+        private List<Vector3> locations = new List<Vector3>();
+        public static Hornys Shop { get; private set; }
+
+        private int price = 35;
+
+        public Hornys()
+        {
+            LoadLocationsFromIni();
+            Shop = this;
+
+            Tick += OnTick;
+        }
+
+        public void LoadLocationsFromIni()
+        {
+            string iniPath = @"scripts\LSPDRP\locations\Hornys.ini";
+            if (!File.Exists(iniPath))
+            {
+                GTA.UI.Screen.ShowHelpText("~r~Hornys.ini not found!");
+                return;
+            }
+
+            var lines = File.ReadAllLines(iniPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Price", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int parsedPrice))
+                    {
+                        price = parsedPrice;
+                    }
+                }
+                if (line.StartsWith("Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length != 2) continue;
+
+                    string[] coords = parts[1].Split(',');
+                    if (coords.Length != 3) continue;
+
+                    if (float.TryParse(coords[0], out float x) &&
+                        float.TryParse(coords[1], out float y) &&
+                        float.TryParse(coords[2], out float z))
+                    {
+                        locations.Add(new Vector3(x, y, z));
+                    }
+                }
+            }
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Ped player = Game.Player.Character;
+            if (!player.Exists() || player.IsDead) return;
+
+            foreach (var location in locations)
+            {
+                float distance = player.Position.DistanceTo(location);
+
+                if (distance < 2.0f && !Game.Player.Character.IsInVehicle())
+                {
+                    // Draw marker
+                    Function.Call(GTA.Native.Hash.DRAW_MARKER, 1,
+                        location.X, location.Y, location.Z - 1.0f,
+                        0, 0, 0, 0, 0, 0,
+                        1.5f, 1.5f, 1.0f,
+                        255, 255, 255, 200,
+                        false, true, 2, false, null, null, false);
+
+                    TimeSpan time = World.CurrentTimeOfDay;
+                    int hour = time.Hours;
+
+                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    {
+                        if (Player.Data.cashValue >= price)
+                        {
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy some Honrys for ${price}", 1);
+
+                            if (Game.IsControlJustPressed(GTA.Control.Context))
+                            {
+                                EatFood(player);
+                            }
+                        }
+                        else
+                        {
+                            GTA.UI.Screen.ShowHelpText($"~r~You're poor to eat here (${price})", 1);
+                        }
+                    }
+                    else
+                    {
+                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                    }
+
+                    break; // only interact with one location per tick
+                }
+            }
+        }
+
+        private void EatFood(Ped player)
+        {
+            // Cash Transfer
+            Player.Data.CashTransfer(false, price);
+            Player.Data.ShowForSeconds(5);
+            NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
+
+            // Restore a bit of health
+            player.Health = Math.Min(player.MaxHealth, player.Health + 15);
+
+            // Play eating animation
+            Function.Call(GTA.Native.Hash.TASK_START_SCENARIO_IN_PLACE, player, "WORLD_HUMAN_DRINKING", 0, true);
+
+            // Wait 4 seconds
+            Script.Wait(4000);
+
+            if (player.Exists() && !player.IsDead)
+            {
+                Function.Call(GTA.Native.Hash.CLEAR_PED_TASKS_IMMEDIATELY, player); // Stop the animation
+            }
+        }
+
+    }
+    #endregion
+
+
+    #endregion
+
+    #region Vehicle
+    public class Indicator : Script
+    {
+        private bool leftSignalOn = false;
+        private bool rightSignalOn = false;
+
+        public Indicator()
+        {
+            Tick += OnTick;
+            KeyDown += OnKeyDown;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Vehicle veh = Game.Player.Character.CurrentVehicle;
+
+            if (veh != null && veh.Exists())
+            {
+                // Sync indicators
+                Function.Call(GTA.Native.Hash.SET_VEHICLE_INDICATOR_LIGHTS, veh, 1, leftSignalOn);  // 0 = left
+                Function.Call(GTA.Native.Hash.SET_VEHICLE_INDICATOR_LIGHTS, veh, 0, rightSignalOn); // 1 = right
+            }
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            Ped player = Game.Player.Character;
+
+            if (!player.IsInVehicle() || Function.Call<bool>(GTA.Native.Hash.IS_PED_RUNNING_MOBILE_PHONE_TASK, player))
+                return;
+
+
+            if (e.KeyCode == Keys.OemOpenBrackets)
+            {
+                leftSignalOn = !leftSignalOn;
+                rightSignalOn = false;
+            }
+            else if (e.KeyCode == Keys.OemCloseBrackets)
+            {
+                rightSignalOn = !rightSignalOn;
+                leftSignalOn = false;
+            }
+            else if (e.KeyCode == Keys.OemMinus)
+            {
+                // Toggle hazards
+                bool hazardActive = leftSignalOn && rightSignalOn;
+                leftSignalOn = !hazardActive;
+                rightSignalOn = !hazardActive;
+            }
+        }
+    }
+    public class PlateDisplay : Script
+    {
+        private string[] plateTextures = new string[]
+        {
+        "plate01", // Blue on white 1
+        "plate02", // Yellow on black
+        "plate03", // Yellow on blue
+        "plate04", // Blue on white 2
+        "plate05", // North Yankton
+        "plate06"  // Yankton (DLC cases)
+        };
+
+        public PlateDisplay()
+        {
+            Tick += OnTick;
+            Interval = 0;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Vehicle veh = Game.Player.Character.CurrentVehicle;
+
+            if (veh != null && veh.Exists())
+            {
+                int plateIndex = Function.Call<int>(GTA.Native.Hash.GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX, veh);
+
+                if (plateIndex >= 0 && plateIndex < plateTextures.Length)
+                {
+                    string plateTexture = plateTextures[plateIndex];
+
+                    float spritePosX = 0.22f;
+                    float spritePosY = 0.85f;
+                    float spriteWidth = 0.085f;
+                    float spriteHeight = 0.075f;
+
+                    Display.Instance.DrawSprite("vehshare", plateTexture, new PointF(spritePosX, spritePosY), new SizeF(spriteWidth, spriteHeight), 0f, Color.White);
+
+                    PointF position = new PointF(0.5f, 0.5f); // center of the screen
+                    SizeF size = new SizeF(0.2f, 0.2f);       // 20% width and height of the screen
+
+                    string plateText = Function.Call<string>(GTA.Native.Hash.GET_VEHICLE_NUMBER_PLATE_TEXT, veh);
+
+                    // Draw the plate text centered on the plate sprite
+                    Display.Instance.DrawText(plateText, 0.22f, 0.835f, 0.63f, 7, Color.White);
+                }
+            }
+        }
+    }
+    #endregion
+}
