@@ -1,2 +1,8 @@
 # LSPD-RP
-LSPD-RP an add-on for LSPDFR
+LSPD-RP is an add-on for LSPDFR
+
+## Required Mods
+> - ScriptHookV
+> - ScriptHookVDotNet3
+> - LemonUI.SHVDN3
+> - Cayo Perico Rage Plugin
