@@ -27,18 +27,49 @@ using LemonUI.Menus;
 namespace OaksVAPI
 {
     #region Developer Tools
-    public class DeveloperTool :Script
+    public class DeveloperTool : Script
     {
-        public static bool isDev = true;
+        private static string saveFilePath = @"scripts\LSPDRP\Settings.ini";
+        public static bool isDev = false; // default to false
 
         public DeveloperTool()
         {
             KeyDown += OnKeyUp;
 
+            // Create directory if it doesn't exist
+            Directory.CreateDirectory(Path.GetDirectoryName(saveFilePath));
+
+            // Load settings from INI file
+            LoadSettingsFromIni();
         }
+
+        public static void LoadSettingsFromIni()
+        {
+            if (!File.Exists(saveFilePath))
+            {
+                // Create default INI with isDev = false
+                File.WriteAllText(saveFilePath, "[Developer]\nisDev=true");
+                isDev = true;
+                return;
+            }
+
+            string[] lines = File.ReadAllLines(saveFilePath);
+            foreach (string line in lines)
+            {
+                if (line.StartsWith("isDev", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && bool.TryParse(parts[1].Trim(), out bool result))
+                    {
+                        isDev = result;
+                    }
+                }
+            }
+        }
+
         private void OnKeyUp(object sender, KeyEventArgs e)
         {
-            if(isDev)
+            if (isDev)
             {
                 if (e.KeyCode == Keys.F12)
                 {
@@ -47,7 +78,7 @@ namespace OaksVAPI
                     Inventory.player.LoadInventoryData();
                     Hospital.Data.LoadLocationsFromIni();
 
-                    // Reload Restraunts Ini
+                    // Reload Restaurants Ini
                     ChihuahuaStore.Shop.LoadLocationsFromIni();
                     BurgerShot.Shop.LoadLocationsFromIni();
                     Bite.Shop.LoadLocationsFromIni();
@@ -66,15 +97,20 @@ namespace OaksVAPI
                     WeedStore.Shop.LoadLocationsFromIni();
                     RedwoodShop.Shop.LoadLocationsFromIni();
 
-                    // Reload Unlock Doors
-                    LoadMaps.LoadDoorsFromIni(LoadMaps.path);
+                    LoadSettingsFromIni();
 
-                    NotificationManager.CreateNotificationIcon(NotificationIcon.Default, "ContinuedOak", "Developer Message", "Successful Reloaded All Ini");
+                    FreemodeOutfitManager.LoadOutfitFromIni();
+
+                    NotificationManager.CreateNotificationIcon(NotificationIcon.Default, "ContinuedOak", "Developer Message", "Successfully Reloaded All Ini Files");
+                }
+
+                if (e.KeyCode == Keys.F10)
+                {
+                    FreemodeOutfitManager.SaveOutfitToIni();
                 }
             }
         }
     }
-
     public class LocationSaver : Script
     {
         private string saveFilePath = @"scripts\LSPDRP\locations\debug\SavedLocations.ini";
@@ -97,7 +133,7 @@ namespace OaksVAPI
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (Game.IsKeyPressed(Keys.F11))
+            if (Game.IsKeyPressed(Keys.F11) && DeveloperTool.isDev)
             {
                 SavePlayerLocation();
                 Script.Wait(300); // prevent multiple writes from one key press
@@ -339,9 +375,6 @@ namespace OaksVAPI
     {
         private bool isLoaded = false;
 
-        public static string path = "scripts\\LSPDRP\\UnlockedDoors.ini";
-
-
         public LoadMaps()
         {
             Tick += OnTick;
@@ -349,14 +382,64 @@ namespace OaksVAPI
 
         private void OnTick(object sender, EventArgs e)
         {
-            LoadDoorsFromIni(path);
+            // temp
+            UnlockDoor("v_ilev_fibl_door01", new Vector3(105.7607f, -746.6460f, 46.1827f));
+            UnlockDoor("v_ilev_fibl_door02", new Vector3(106.3793f, -742.6982f, 46.1817f));
+
+            UnlockDoor("v_ilev_bk_door", new Vector3(266.3624f, 217.5697f, 110.4328f));
+            UnlockDoor("prop_magenta_door", new Vector3(96.0920f, -1284.853f, 29.4388f));
+
+            // temp
+            UnlockDoor("v_ilev_ml_door1", new Vector3(1392.9269f, 3599.4688f, 35.1308f));
+            UnlockDoor("v_ilev_ml_door1", new Vector3(1395.3710f, 3600.3584f, 35.1308f));
+
+            // Life Invador
+            UnlockDoor("v_ilev_fb_doorshortr", new Vector3(-1046.516f, -229.3581f, 39.4379f));
+            UnlockDoor("v_ilev_fb_door01", new Vector3(-1083.620f, -260.4167f, 38.1867f));
+            UnlockDoor("v_ilev_fb_door02", new Vector3(-1080.974f, -259.0204f, 38.1867f));
+            UnlockDoor("v_ilev_door_orangesolid", new Vector3(-105.958f, -236.4251f, 44.1710f));
+
+            // Main Houses
+            UnlockDoor("v_ilev_trevtraildr", new Vector3(1972.7689f, 3815.3600f, 33.6633f)); // Trev1
+            UnlockDoor("v_ilev_trev_doorfront", new Vector3(-1149.708f, -1521.087f, 10.7827f)); // Trev2
+            UnlockDoor("v_ilev_lester_doorfront", new Vector3(1273.815f, -1720.697f, 54.92143f)); // Lest
+            UnlockDoor("v_ilev_fa_frontdoor", new Vector3(-14.8689f, -1441.182f, 31.1932f)); // Frank1
+            UnlockDoor("prop_sc1_21_g_door_01", new Vector3(-25.2784f, -1431.061f, 30.8396f)); // FrankG
+            UnlockDoor("prop_lrggate_02_ld", new Vector3(-844.0510f, 155.9619f, 66.0322f)); // Mich1
+            UnlockDoor("prop_ld_garaged_01", new Vector3(-815.2816f, 185.9750f, 72.9999f)); // Mich2
+            UnlockDoor("prop_bh1_48_gate_1", new Vector3(-848.9343f, 179.3079f, 70.0247f)); // Mich3
+
+            // Cult Shit
+            UnlockDoor("prop_gate_tep_01_l", new Vector3(-721.3501f, 91.0135f, 56.6767f));
+            UnlockDoor("prop_gate_tep_01_r", new Vector3(-728.8371f, 88.6393f, 56.6767f));
+
+            // Car Dealership
+            UnlockDoor("v_ilev_fib_door1", new Vector3(-31.7235f, -1101.846f, 26.5723f));
+
+            UnlockDoor("v_ilev_csr_door_l", new Vector3(-59.8930f, -1092.951f, 26.8836f));
+            UnlockDoor("v_ilev_csr_door_l", new Vector3(-39.1337f, -1108.218f, 26.7198f));
+
+            UnlockDoor("v_ilev_csr_door_r", new Vector3(-60.5458f, -1094.748f, 26.8887f));
+            UnlockDoor("v_ilev_csr_door_r", new Vector3(-37.3311f, -1108.873f, 26.7198f));
+
+
+            // Gun Store
+            UnlockDoor("v_ilev_gc_door03", new Vector3(16.1279f, -1114.605f, 29.9469f));
+            UnlockDoor("v_ilev_gc_door04", new Vector3(18.5720f, -1115.495f, 29.9469f));
+
+            // Pay and Spray
+            UnlockDoor("v_ilev_carmod3door", new Vector3(1182.3055f, 2645.2324f, 38.6396f));
+            UnlockDoor("prop_id2_11_gdoor", new Vector3(723.1160f, -1088.831f, 23.2320f));
+
+            //UnlockDoor("v_ilev_roc_door4", new Vector3(-565.1712f, 276.6259f, 83.2863f));
+
             if (!isLoaded)
             {
                 LoadIPLs();
+
                 isLoaded = true;
             }
         }
-
 
         private void LoadIPLs()
         {
@@ -369,9 +452,13 @@ namespace OaksVAPI
             Function.Call(Hash.REMOVE_IPL, "sp1_10_fake_interior");
             Function.Call(Hash.REMOVE_IPL, "farmint_cap"); // O'Neil Ranch
             Function.Call(Hash.REMOVE_IPL, "CS1_02_cf_offmission");
+            Function.Call(Hash.REMOVE_IPL, "v_fib01");
+            Function.Call(Hash.REMOVE_IPL, "v_fib02");
             Function.Call(Hash.REMOVE_IPL, "jewel2fake");
 
             // Request IPLs
+            Function.Call(Hash.REQUEST_IPL, "fiblobby");
+            Function.Call(Hash.REQUEST_IPL, "v_cia");
             Function.Call(Hash.REQUEST_IPL, "BH1_48_Killed_Michael");
             Function.Call(Hash.REQUEST_IPL, "linvader");
             Function.Call(Hash.REQUEST_IPL, "facelobby");
@@ -379,6 +466,11 @@ namespace OaksVAPI
             Function.Call(Hash.REQUEST_IPL, "xs_arena_banners_ipl");
             Function.Call(Hash.REQUEST_IPL, "m24_2_airstrip");
             Function.Call(Hash.REQUEST_IPL, "m24_2_airstrip_lod");
+            Function.Call(Hash.REQUEST_IPL, "v_cashdepot");
+            Function.Call(Hash.REQUEST_IPL, "v_coroner");
+
+
+            Function.Call(Hash.REQUEST_IPL, "vw_dlc_casino_main");
 
 
             Function.Call(Hash.REQUEST_IPL, "post_hiest_unload");
@@ -403,37 +495,9 @@ namespace OaksVAPI
             // Alien DLC interiors
             Function.Call(Hash.REQUEST_IPL, "m23_1_dlc_int_03_m23_1");
             Function.Call(Hash.REQUEST_IPL, "ufo");
-        }
-        public static void LoadDoorsFromIni(string path)
-        {
-            if (!File.Exists(path))
-            {
-                return;
-            }
 
-            var lines = File.ReadAllLines(path);
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("door", StringComparison.OrdinalIgnoreCase))
-                {
-                    string[] parts = line.Split('=');
-                    if (parts.Length != 2)
-                        continue;
-
-                    string[] values = parts[1].Split(',');
-                    if (values.Length != 4)
-                        continue;
-
-                    string model = values[0].Trim();
-                    if (float.TryParse(values[1], out float x) &&
-                        float.TryParse(values[2], out float y) &&
-                        float.TryParse(values[3], out float z))
-                    {
-                        UnlockDoor(model, new Vector3(x, y, z));
-                    }
-                }
-            }
-
+            // Supermod
+            Function.Call(Hash.REQUEST_IPL, "lr_supermod_int");
         }
 
         public static void UnlockDoor(string modelName, Vector3 position)
@@ -467,23 +531,78 @@ namespace OaksVAPI
         public int cashValue;
         public bool isMenuOpen;
 
-        public int hunger;
+        private static string settingsPath = @"scripts\LSPDRP\Settings.ini";
+
+        public static bool IsMale { get; private set; } = true;
+        public static bool LoadCharacter { get; private set; } = true;
 
         public static Player Data { get; private set; }
 
         private DateTime displayStart = DateTime.MinValue;
         private DateTime displayEnd = DateTime.MinValue;
-        private const float fadeDuration = 0.1f; // seconds
+        private const float fadeDuration = 0.1f;
+
+        private Keys showCashKey = Keys.F10;
+        private Keys openInventoryKey = Keys.F7;
 
         public Player()
         {
             Data = this;
+
+            LoadSettings();
+            LoadBankingData();
+
+            FreemodeOutfitManager.LoadOutfitFromIni();
+
             Tick += OnTick;
             KeyDown += OnKeyDown;
 
-            LoadBankingData();
-
             ShowForSeconds(10);
+        }
+
+        private void LoadSettings()
+        {
+            try
+            {
+                if (!File.Exists(settingsPath))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(settingsPath));
+                    File.WriteAllText(settingsPath,
+        @"[Player]
+ShowCashKey=Z
+InventoryKey=I
+IsMale=false
+LoadCharacter=false");
+                }
+
+                var lines = File.ReadAllLines(settingsPath);
+                foreach (var line in lines)
+                {
+                    if (line.StartsWith("ShowCashKey=", StringComparison.OrdinalIgnoreCase))
+                        Enum.TryParse(line.Split('=')[1].Trim(), out showCashKey);
+
+                    else if (line.StartsWith("InventoryKey=", StringComparison.OrdinalIgnoreCase))
+                        Enum.TryParse(line.Split('=')[1].Trim(), out openInventoryKey);
+
+                    else if (line.StartsWith("IsMale=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string value = line.Split('=')[1].Trim();
+                        if (bool.TryParse(value, out bool result))
+                            IsMale = result;
+                    }
+                    else if (line.StartsWith("LoadCharacter=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string value = line.Split('=')[1].Trim();
+                        if (bool.TryParse(value, out bool result))
+                            LoadCharacter = result;
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                GTA.UI.Notification.Show("~r~Error loading Player settings: " + ex.Message);
+            }
         }
 
         public void SaveBankingData()
@@ -496,14 +615,15 @@ namespace OaksVAPI
             cashValue = SaveLoadManager.LoadInt("PlayerData", "cash", 500);
         }
 
-        public void CashTransfer(bool type, int vaule)
+        public void CashTransfer(bool type, int value)
         {
-            if(type)
-                cashValue += vaule;
+            if (type)
+                cashValue += value;
             else
-                cashValue -= vaule;
+                cashValue -= value;
 
-            // Saves Players Cash Vaule
+            ShowForSeconds(5);
+
             SaveBankingData();
         }
 
@@ -527,45 +647,255 @@ namespace OaksVAPI
 
             if (elapsed < fadeDuration)
             {
-                // Fade in
                 alpha = elapsed / fadeDuration;
             }
             else if (remaining < fadeDuration)
             {
-                // Fade out
                 alpha = remaining / fadeDuration;
             }
 
-            // Clamp alpha between 0 and 1
             alpha = Math.Max(0f, Math.Min(1f, alpha));
-
             int alpha255 = (int)(alpha * 255f);
 
             string cashTxt = "$" + cashValue;
             Color cashColour = Color.FromArgb(alpha255, 119, 204, 116);
 
-            Display.Instance.DrawTextRightAligned(
-                cashTxt,
-                1f,
-                0.075f,
-                0.65f,
-                7,
-                cashColour);
+            Display.Instance.DrawTextRightAligned(cashTxt, 1f, 0.075f, 0.65f, 7, cashColour);
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.F10)
+            if (e.KeyCode == showCashKey)
             {
-                ShowForSeconds(5); // Show for 5 seconds
+                ShowForSeconds(5);
             }
-            if (e.KeyCode == Keys.F7)
+
+            if (e.KeyCode == openInventoryKey)
             {
                 Inventory.player.ToggleMenu();
             }
         }
     }
 
+    public class FreemodeOutfitManager : Script
+    {
+        private static string path = @"scripts\LSPDRP\Outfits.ini";
+
+        public FreemodeOutfitManager()
+        {
+            if (Player.LoadCharacter && DeveloperTool.isDev)
+                ApplyFreemodeModel(Player.IsMale); LoadOutfitFromIni();
+        }
+
+
+        private void ApplyFreemodeModel(bool male)
+        {
+            string modelName = male ? "mp_m_freemode_01" : "mp_f_freemode_01";
+            Model model = new Model(modelName);
+            if (!model.IsInCdImage || !model.IsValid) return;
+
+            model.Request(500);
+            while (!model.IsLoaded) Script.Wait(100);
+
+            Function.Call(Hash.SET_PLAYER_MODEL, Game.Player, model.Hash);
+            Function.Call(Hash.CLEAR_ALL_PED_PROPS, Game.Player.Character);
+            Function.Call(Hash.SET_PED_DEFAULT_COMPONENT_VARIATION, Game.Player.Character);
+
+            model.MarkAsNoLongerNeeded();
+        }
+
+        public static void LoadOutfitFromIni()
+        {
+            Ped player = Game.Player.Character;
+
+            if (!File.Exists(path)) return;
+
+            var lines = File.ReadAllLines(path);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("#") || !line.Contains("=")) continue;
+
+                string[] parts = line.Split('=');
+                if (parts.Length != 2) continue;
+
+                string key = parts[0].Trim();
+                string[] values = parts[1].Trim().Split(',');
+
+                if (values.Length < 2) continue;
+
+                if (key.StartsWith("P")) // Prop
+                {
+                    if (int.TryParse(key.Substring(1), out int propId))
+                    {
+                        int drawable = int.Parse(values[0]);
+                        int texture = int.Parse(values[1]);
+
+                        if (drawable == -1)
+                        {
+                            Function.Call(Hash.CLEAR_PED_PROP, player, propId);
+                        }
+                        else
+                        {
+                            Function.Call(Hash.SET_PED_PROP_INDEX, player, propId, drawable, texture, true);
+                        }
+                    }
+                }
+                else if (int.TryParse(key, out int componentId)) // Clothing component
+                {
+                    int drawable = int.Parse(values[0]);
+                    int texture = int.Parse(values[1]);
+                    Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, componentId, drawable, texture, 0);
+                }
+            }
+        }
+
+        public static void SaveOutfitToIni()
+        {
+            Ped player = Game.Player.Character;
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using (StreamWriter writer = new StreamWriter(path, false))
+            {
+                writer.WriteLine("# Format: componentId = drawable, texture");
+                writer.WriteLine("# Props are saved with key 'P' + propIndex (e.g., P0 = hat)");
+
+                // Save clothing components
+                for (int i = 0; i <= 11; i++)
+                {
+                    int drawable = Function.Call<int>(Hash.GET_PED_DRAWABLE_VARIATION, player, i);
+                    int texture = Function.Call<int>(Hash.GET_PED_TEXTURE_VARIATION, player, i);
+                    writer.WriteLine($"{i} = {drawable}, {texture}");
+                }
+
+                // Save props (hats, glasses, ears, watches, etc.)
+                for (int i = 0; i <= 7; i++) // prop indexes (not all used, but safe range)
+                {
+                    int propDrawable = Function.Call<int>(Hash.GET_PED_PROP_INDEX, player, i);
+                    int propTexture = Function.Call<int>(Hash.GET_PED_PROP_TEXTURE_INDEX, player, i);
+                    writer.WriteLine($"P{i} = {propDrawable}, {propTexture}");
+                }
+            }
+        }
+
+        public static void ApplyOutfit(Ped ped, Dictionary<int, (int drawable, int texture)> components, Dictionary<int, (int propIndex, int propTexture)> props = null)
+        {
+            // Apply clothing components (0-11)
+            foreach (var kvp in components)
+            {
+                int componentId = kvp.Key;
+                int drawable = kvp.Value.drawable;
+                int texture = kvp.Value.texture;
+
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, ped, componentId, drawable, texture, 0);
+            }
+
+            // Apply props (e.g., hats, glasses, etc.)
+            if (props != null)
+            {
+                foreach (var kvp in props)
+                {
+                    int propId = kvp.Key;
+                    int drawable = kvp.Value.propIndex;
+                    int texture = kvp.Value.propTexture;
+
+                    if (drawable == -1)
+                    {
+                        Function.Call(Hash.CLEAR_PED_PROP, ped, propId);
+                    }
+                    else
+                    {
+                        Function.Call(Hash.SET_PED_PROP_INDEX, ped, propId, drawable, texture, true);
+                    }
+                }
+            }
+        }
+
+    }
+    #region Misc
+    public class Crosshair : Script
+    {
+        public static Crosshair Instance { get; private set; }
+
+        private bool active = false;
+        private Keys toggleKey = Keys.E;
+        private string configPath = "scripts\\LSPDRP\\RemovedCrosshair.ini";
+
+        public Crosshair()
+        {
+            Instance = this;
+
+            LoadSettings();
+
+            Tick += OnTick;
+            KeyDown += OnKeyDown;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            if (active && Game.Player.IsAiming)
+                Hud.ShowComponentThisFrame(HudComponent.Reticle);
+            else
+                Hud.HideComponentThisFrame(HudComponent.Reticle);
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == toggleKey)
+            {
+                Toggle();
+            }
+        }
+
+        public void Toggle()
+        {
+            active = !active;
+            SaveSettings();
+        }
+
+        private void LoadSettings()
+        {
+            if (!File.Exists(configPath))
+            {
+                SaveSettings(); // Create with default if it doesn't exist
+                return;
+            }
+
+            var lines = File.ReadAllLines(configPath);
+
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("Active", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && bool.TryParse(parts[1], out bool result))
+                    {
+                        active = result;
+                    }
+                }
+                else if (line.StartsWith("ToggleKey", StringComparison.OrdinalIgnoreCase))
+                {
+                    string[] parts = line.Split('=');
+                    if (parts.Length == 2 && Enum.TryParse(parts[1], out Keys key))
+                    {
+                        toggleKey = key;
+                    }
+                }
+            }
+        }
+
+        private void SaveSettings()
+        {
+            var lines = new string[]
+            {
+                $"Active={active}",
+                $"ToggleKey={toggleKey}"
+            };
+
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)); // Ensure 'scripts/' exists
+            File.WriteAllLines(configPath, lines);
+        }
+    }
+    #endregion
     #endregion
 
     #region Inventory
@@ -954,6 +1284,7 @@ namespace OaksVAPI
         public static WeedStore Shop { get; private set; }
 
         private int price = 5;
+        private int itemCount = 5;
 
         public WeedStore()
         {
@@ -1022,11 +1353,11 @@ namespace OaksVAPI
                     TimeSpan time = World.CurrentTimeOfDay;
                     int hour = time.Hours;
 
-                    if (hour >= 6 && hour < 21) // 6 AM to 8:59 PM
+                    if (hour >= 6 && hour < 22) // 6 AM to 8:59 PM
                     {
                         if (Player.Data.cashValue >= price)
                         {
-                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy a Chihuahua Hotdog for ${price}", 1);
+                            GTA.UI.Screen.ShowHelpText($"Press ~INPUT_CONTEXT~ to buy ${itemCount} Weed for ${price}", 1);
 
                             if (Game.IsControlJustPressed(GTA.Control.Context))
                             {
@@ -1040,7 +1371,7 @@ namespace OaksVAPI
                     }
                     else
                     {
-                        GTA.UI.Screen.ShowHelpText("~o~This Restraunt is currently closed. Open 6 AM to 9 PM.", 1);
+                        GTA.UI.Screen.ShowHelpText("~o~This Location is currently closed. Open 6 AM to 11 PM.", 1);
                     }
 
                     break; // only interact with one location per tick
@@ -1052,10 +1383,9 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
-            Inventory.player?.AddItem("Weed", 5);
+            Inventory.player?.AddItem("Weed", itemCount);
         }
 
     }
@@ -1182,7 +1512,6 @@ namespace OaksVAPI
         {
             // Deduct cash
             Player.Data.CashTransfer(false, totalPrice);
-            Player.Data.ShowForSeconds(5);
 
             // Bank notification
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${totalPrice} has been deducted from the account ending in *420");
@@ -1210,6 +1539,7 @@ namespace OaksVAPI
         new Vector3(-1317.698f, 939.4100f, 9.7301f), // Bay City Ave
         new Vector3(-1661.8660f, -533.8199f, 35.8754f),
         new Vector3(-736.9651f, -2276.5610f, 13.4375f),
+        new Vector3(313.3613f, -225.3011f, 54.2212f),
         };
 
         private int price = 150;
@@ -1255,9 +1585,6 @@ namespace OaksVAPI
 
         private void RentMotel()
         {
-            Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
-
             int currentHour = World.CurrentTimeOfDay.Hours;
 
             // Fade screen out first for immersion
@@ -1281,6 +1608,7 @@ namespace OaksVAPI
 
             Script.Wait(500);
             Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_IN, 1000);
+            Player.Data.CashTransfer(false, price);
 
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
         }
@@ -1392,7 +1720,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -1516,7 +1843,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -1640,7 +1966,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -1763,7 +2088,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -1887,7 +2211,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2011,7 +2334,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2135,7 +2457,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2259,7 +2580,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2382,7 +2702,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2506,7 +2825,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2629,7 +2947,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2753,7 +3070,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2877,7 +3193,6 @@ namespace OaksVAPI
         {
             // Cash Transfer
             Player.Data.CashTransfer(false, price);
-            Player.Data.ShowForSeconds(5);
             NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank Online", "Transaction Log", $"The total amount of ${price} has been deducted from the account ending in *420");
 
             // Restore a bit of health
@@ -2998,6 +3313,391 @@ namespace OaksVAPI
                     Display.Instance.DrawText(plateText, 0.22f, 0.835f, 0.63f, 7, Color.White);
                 }
             }
+        }
+    }
+    #endregion
+
+    #region Teleports
+    public class TeleportToggle : Script
+    {
+        private Vector3 locationA = new Vector3(135.9471f, -761.7041f, 45.7521f);
+        private Vector3 locationB = new Vector3(135.9910f, -761.7946f, 242.1466f);
+
+        private float activationDistance = 1.0f; // Distance to trigger help text
+
+        public TeleportToggle()
+        {
+            Tick += OnTick;
+            Interval = 10;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            Vector3 playerPos = Game.Player.Character.Position;
+
+            // Show help text if player is near either location
+            if (playerPos.DistanceTo(locationA) < activationDistance || playerPos.DistanceTo(locationB) < activationDistance)
+            {
+                GTA.UI.Screen.ShowHelpTextThisFrame("Press ~INPUT_CONTEXT~ to use the elevator");
+            }
+
+            if (Game.IsControlJustPressed(GTA.Control.Context))
+            {
+                Ped player = Game.Player.Character;
+
+                if (player.Position.DistanceTo(locationA) < activationDistance)
+                {
+                    TeleportPlayer(locationB);
+                }
+                else if (player.Position.DistanceTo(locationB) < activationDistance)
+                {
+                    TeleportPlayer(locationA);
+                }
+            }
+        }
+
+        private void TeleportPlayer(Vector3 destination)
+        {
+            Function.Call(Hash.DO_SCREEN_FADE_OUT, 500);
+            Wait(500);
+            Game.Player.Character.Position = destination;
+            Wait(500);
+            Function.Call(Hash.DO_SCREEN_FADE_IN, 500);
+        }
+    }
+    #endregion
+    #region Events
+
+    public class GhostJay : Script
+    {
+        private readonly Vector3 spawnLocation = new Vector3(684.2604f, 572.1160f, 129.9931f); // Change to your desired coords
+        private readonly int spawnHour = 22; // 24-hour format, e.g. 14 = 2 PM
+        private readonly int spawnMinute = 0;
+        private readonly int durationMinutes = 3; // How long (in minutes) the object stays before deleting
+
+        private Prop spawnedObject;
+        private DateTime? despawnTime = null;
+        private bool objectSpawned = false;
+
+        public GhostJay()
+        {
+            Tick += OnTick;
+            Interval = 1000; // Check once per second
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            int hour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+            int minute = Function.Call<int>(Hash.GET_CLOCK_MINUTES);
+
+            if (!objectSpawned && (hour > spawnHour || (hour == spawnHour && minute >= spawnMinute)))
+            {
+                SpawnObject();
+            }
+
+            if (objectSpawned && despawnTime.HasValue && DateTime.Now >= despawnTime.Value)
+            {
+                DeleteObject();
+            }
+        }
+
+        private void SpawnObject()
+        {
+            Model model = new Model("m25_1_prop_m51_ghostjay_01a");
+            model.Request(500);
+            while (!model.IsLoaded) Script.Wait(100);
+
+            spawnedObject = World.CreateProp(model, spawnLocation, true, false);
+
+            // Disable collision
+            Function.Call(Hash.SET_ENTITY_COLLISION, spawnedObject, false, false);
+            Function.Call(Hash.FREEZE_ENTITY_POSITION, spawnedObject, true);
+
+            model.MarkAsNoLongerNeeded();
+
+            despawnTime = DateTime.Now.AddMinutes(durationMinutes);
+            objectSpawned = true;
+        }
+
+        private void DeleteObject()
+        {
+            if (spawnedObject != null && spawnedObject.Exists())
+            {
+                spawnedObject.Delete();
+            }
+
+            spawnedObject = null;
+            objectSpawned = false;
+            despawnTime = null;
+        }
+    }
+
+    public class UFOAlienSpawner : Script
+    {
+        private readonly Vector3 spawnLocation = new Vector3(1362.4375f, 2161.1243f, 106.3658f); // Change to your desired coords
+        private readonly int durationMinutes = 1; // How long (in minutes) the object stays before deleting
+
+        private Prop spawnedObject;
+        private DateTime? despawnTime = null;
+        private bool objectSpawned = false;
+
+        public UFOAlienSpawner()
+        {
+            Tick += OnTick;
+            Interval = 1000; // Check once per second
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            int hour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+
+            if (hour >= 2 && hour < 3)
+            {
+                if (!objectSpawned)
+                {
+                    SpawnObject();
+                }
+            }
+            else
+            {
+                if (objectSpawned)
+                {
+                    DeleteObject();
+                }
+            }
+        }
+
+
+        private void SpawnObject()
+        {
+            Model model = new Model("sum_prop_dufocore_01a");
+            model.Request(500);
+            while (!model.IsLoaded) Script.Wait(100);
+
+            spawnedObject = World.CreateProp(model, spawnLocation, true, false);
+
+            // Disable collision
+            Function.Call(Hash.SET_ENTITY_COLLISION, spawnedObject, false, false);
+            Function.Call(Hash.FREEZE_ENTITY_POSITION, spawnedObject, true);
+
+            model.MarkAsNoLongerNeeded();
+
+            despawnTime = DateTime.Now.AddMinutes(durationMinutes);
+            objectSpawned = true;
+        }
+
+        private void DeleteObject()
+        {
+            if (spawnedObject != null && spawnedObject.Exists())
+            {
+                spawnedObject.Delete();
+            }
+
+            spawnedObject = null;
+            objectSpawned = false;
+            despawnTime = null;
+        }
+    }
+    #endregion
+
+    #region Jobs/Work
+    public class Stockaid : Script
+    {
+        private Vector3 locationShop = new Vector3(-197.3186f, -831.3691f, 30.7507f);
+        private List<Vector3> pickupLocations = new List<Vector3>
+    {
+        new Vector3(16.1973f, -1343.3970f, 28.6709f),
+        new Vector3(233.8601f, -1755.9460f, 28.4064f),
+        new Vector3(-39.1163f, -1746.3800f, 28.8597f)
+    };
+
+        private enum DeliveryState { None, EnRouteToPickup, ReturningToShop }
+
+        private Vehicle stockade;
+        private Blip deliveryBlip;
+        private DeliveryState currentState = DeliveryState.None;
+        private Vector3 deliveryPoint;
+        private Vector3 returnPoint;
+        private bool inMission = false;
+        private Vector3 vehicleSpawnPoint;
+        private const uint Stockade3Hash = 0x40F546B0;
+
+        private int payout = 2500;
+
+        public Stockaid()
+        {
+            Tick += OnTick;
+            Interval = 10;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            DrawMarker(locationShop);
+
+            if (Game.IsControlJustPressed(GTA.Control.Context) && !inMission && Game.Player.Character.Position.DistanceTo(locationShop) < 3f)
+                StartDeliveryMission();
+
+
+            // Show "Press E to start" prompt
+            if (!inMission && Game.Player.Character.Position.DistanceTo(locationShop) < 3f)
+            {
+                GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to start the delivery mission.");
+            }
+
+            if (!inMission) return;
+
+            switch (currentState)
+            {
+                case DeliveryState.EnRouteToPickup:
+                    if (Game.Player.Character.IsInVehicle(stockade) && Game.Player.Character.Position.DistanceTo(deliveryPoint) < 10f)
+                    {
+                        FadeScreenTransition("Delivery complete. Return to base!");
+                        currentState = DeliveryState.ReturningToShop;
+                        SetBlip(returnPoint);
+                    }
+                    break;
+
+                case DeliveryState.ReturningToShop:
+                    if (Game.Player.Character.IsInVehicle(stockade) && Game.Player.Character.Position.DistanceTo(returnPoint) < 10f)
+                    {
+                        FadeScreenTransition("Mission complete.");
+                        NotificationManager.CreateNotificationIcon(NotificationIcon.BankMaze, "Maze Bank", "Delivery Complete", $"a payment of {payout} has been added to the account ending in *420.");
+                        EndMission();
+                    }
+                    break;
+            }
+        }
+
+        private void StartDeliveryMission()
+        {
+            FadeScreenTransition("Starting delivery...");
+
+            uint modelHash = (uint)Game.Player.Character.Model.Hash;
+
+            bool isFreemodeMale = modelHash == (uint)PedHash.FreemodeMale01;
+            bool isFreemodeFemale = modelHash == (uint)PedHash.FreemodeFemale01;
+
+            if (isFreemodeMale)
+            {
+                Ped player = Game.Player.Character;
+
+                // ----- CLOTHING -----
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 3, 11, 0, 0); // Torso
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 4, 101, 0, 0); // Legs
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 5, 0, 0, 0);  // Bag/Back item
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 6, 12, 0, 0); // Shoes
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 7, 0, 0, 0);  // Accessories (bracelets/watches)
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 8, 68, 0, 0); // Undershirt (scarf/neck)
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 9, 2, 0, 0);  // Task/Armour
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 10, 0, 0, 0); // Emblem/Decals
+                Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 11, 213, 1, 0); // Outer Top
+
+                // ----- PROPS -----
+                Function.Call(Hash.SET_PED_PROP_INDEX, player, 0, 144, 0, true);  // Hat
+                Function.Call(Hash.CLEAR_PED_PROP, player, 1);                 // Glasses off
+                Function.Call(Hash.SET_PED_PROP_INDEX, player, 2, 2, 0, true);  // Earpiece
+                Function.Call(Hash.SET_PED_PROP_INDEX, player, 6, 1, 0, true);  // Watch
+                Function.Call(Hash.SET_PED_PROP_INDEX, player, 7, 1, 0, true);  // Bracelet
+
+            }
+            else if (isFreemodeFemale)
+            {
+                //Ped player = Game.Player.Character;
+
+                //// ----- CLOTHING -----
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 3, 15, 0, 0); // Torso
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 4, 21, 0, 0); // Legs
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 5, 0, 0, 0);  // Bag/Back item
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 6, 10, 0, 0); // Shoes
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 7, 0, 0, 0);  // Accessories (bracelets/watches)
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 8, 15, 0, 0); // Undershirt (scarf/neck)
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 9, 3, 0, 0);  // Task/Armour
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 10, 0, 0, 0); // Emblem/Decals
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 11, 104, 1, 0); // Outer Top
+
+                //// Optional — Teeth, Hair, etc.
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 1, 0, 0, 0); // Mask (sometimes teeth, or use head overlays)
+                //Function.Call(Hash.SET_PED_COMPONENT_VARIATION, player, 2, 5, 0, 0); // Hair
+
+                //// ----- PROPS -----
+                //Function.Call(Hash.SET_PED_PROP_INDEX, player, 0, 5, 0, true);  // Hat
+                //Function.Call(Hash.CLEAR_PED_PROP, player, 1);                 // Glasses off
+                //Function.Call(Hash.SET_PED_PROP_INDEX, player, 2, 2, 0, true);  // Earpiece
+                //Function.Call(Hash.SET_PED_PROP_INDEX, player, 6, 1, 0, true);  // Watch
+                //Function.Call(Hash.SET_PED_PROP_INDEX, player, 7, 1, 0, true);  // Bracelet
+
+            }
+
+            Vector3 spawnPos = World.GetNextPositionOnStreet(locationShop);
+            vehicleSpawnPoint = spawnPos;
+
+            Model model = new Model(unchecked((int)Stockade3Hash)); // Delivery Vehicle
+
+            model.Request(500);
+
+            while (!model.IsLoaded) Script.Wait(100);
+
+            stockade = World.CreateVehicle(model, spawnPos);
+            stockade.PlaceOnGround();
+            Game.Player.Character.SetIntoVehicle(stockade, VehicleSeat.Driver);
+
+            model.MarkAsNoLongerNeeded();
+
+            // Select random delivery location
+            deliveryPoint = pickupLocations[new Random().Next(pickupLocations.Count)];
+            returnPoint = vehicleSpawnPoint;
+
+            stockade.LockStatus = VehicleLockStatus.Unlocked;
+            stockade.FuelLevel = 75f; // Set fuel level
+
+            // Set the license plate using the native function (customize as needed)
+            Function.Call(GTA.Native.Hash.SET_VEHICLE_NUMBER_PLATE_TEXT, stockade.Handle, "GRUPPE 6");
+
+            SetBlip(deliveryPoint);
+
+            currentState = DeliveryState.EnRouteToPickup;
+            inMission = true;
+
+            GTA.UI.Screen.ShowHelpText("~b~Drive the stockade to the delivery point.");
+        }
+
+        private void EndMission()
+        {
+            if (deliveryBlip != null) deliveryBlip.Delete();
+            if (stockade != null && stockade.Exists()) stockade.Delete();
+
+            FreemodeOutfitManager.LoadOutfitFromIni();
+
+            stockade = null;
+            deliveryBlip = null;
+            currentState = DeliveryState.None;
+            inMission = false;
+
+            Player.Data.CashTransfer(true, payout); // payout
+        }
+
+        private void SetBlip(Vector3 target)
+        {
+            if (deliveryBlip != null) deliveryBlip.Delete();
+
+            deliveryBlip = World.CreateBlip(target);
+            deliveryBlip.Color = BlipColor.Blue;
+            deliveryBlip.IsShortRange = false;
+            deliveryBlip.Name = "Delivery Point";
+            deliveryBlip.ShowRoute = true;
+        }
+
+        private void DrawMarker(Vector3 pos)
+        {
+            World.DrawMarker(MarkerType.VerticalCylinder, pos, Vector3.Zero, Vector3.Zero, Vector3.Zero, System.Drawing.Color.FromArgb(180, 0, 255, 0));
+        }
+
+        private void FadeScreenTransition(string message)
+        {
+            Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_OUT, 1000);
+            Script.Wait(1000);
+            GTA.UI.Screen.ShowSubtitle(message, 1000);
+            Function.Call(GTA.Native.Hash.DO_SCREEN_FADE_IN, 1000);
         }
     }
     #endregion
