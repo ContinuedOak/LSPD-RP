@@ -405,6 +405,7 @@ namespace OaksVAPI
             UnlockDoor("v_ilev_lester_doorfront", new Vector3(1273.815f, -1720.697f, 54.92143f)); // Lest
             UnlockDoor("v_ilev_fa_frontdoor", new Vector3(-14.8689f, -1441.182f, 31.1932f)); // Frank1
             UnlockDoor("prop_sc1_21_g_door_01", new Vector3(-25.2784f, -1431.061f, 30.8396f)); // FrankG
+            UnlockDoor("v_ilev_fh_frontdoor", new Vector3(7.5184f, 539.5269f, 176.1776f)); // FrankG
             UnlockDoor("prop_lrggate_02_ld", new Vector3(-844.0510f, 155.9619f, 66.0322f)); // Mich1
             UnlockDoor("prop_ld_garaged_01", new Vector3(-815.2816f, 185.9750f, 72.9999f)); // Mich2
             UnlockDoor("prop_bh1_48_gate_1", new Vector3(-848.9343f, 179.3079f, 70.0247f)); // Mich3
@@ -3367,7 +3368,7 @@ LoadCharacter=false");
     }
     #endregion
     #region Events
-
+    
     public class GhostJay : Script
     {
         private readonly Vector3 spawnLocation = new Vector3(684.2604f, 572.1160f, 129.9931f); // Change to your desired coords
